@@ -14,12 +14,12 @@ int main(int argc, char const *argv[])
 		push_back(queue,node_init(i));
 	}
 
-	printf("%d,,,%d,,,,%d\n", queue->size,queue->front->data,queue->back->data);
+	printf("Size:%d,Front:%d,Back:%d\n", queue->size,queue->front->data,queue->back->data);
 	pop_front(queue,&popped_node);
-	printf("%d,,,%d,,,,%d\n", queue->size,queue->front->data,queue->back->data);
+	printf("Size:%d,Front:%d,Back:%d\n", queue->size,queue->front->data,queue->back->data);
 	pop_front(queue,&popped_node);
-	printf("%d,,,%d,,,,%d\n", queue->size,queue->front->data,queue->back->data);
+	printf("Size:%d,Front:%d,Back:%d\n", queue->size,queue->front->data,queue->back->data);
 	pop_front(queue,&popped_node);
-	printf("%d\n", queue->size);
+	printf("Size:%d\n", queue->size);
 	return 0;
 }

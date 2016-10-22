@@ -3,92 +3,117 @@
 #include<signal.h>
 #include<ucontext.h>
 #include<assert.h>
-#define MEM SIGSTKSZ
-#define DEBUG
-#define MAX_TCB_NUM 100
-#define HIGH_PRI 0
-#define LOW_PRI 5
-typedef unsigned int uint;
-typedef uint my_pthread_t;
-typedef ucontext_t my_pthread_attr_t;
-typedef struct my_tcb{
-    int thread_priority;
+#include"my_pthread_t.h"
+#include"Queue.h"
+struct my_tcb{
+	int thread_priority;
+	void* retVal;
 
-    my_pthread_t thread_id;
-    ucontext_t thread_context;
-}my_tcb;
+	Queue waitForJoin;
+	my_pthread_t thread_id;
+	ucontext_t thread_context;
+};
 
 /*Global variable to indicate current and next running tcb*/
 my_tcb* cur_tcb; 
 my_tcb* next_tcb;
 
-/*Array that indicates wheather a thread is on, 0 indicates can be create*/
-int array_tcb[MAX_TCB_NUM];
+/*Array that indicates thread status, 0 indicate no such thread, 1 indicate running , 2 indicates blocked*/
+int status_tcb[MAX_TCB_NUM];
+/*Array that hold all the tcbs*/
+my_tcb* all_tcb[MAX_TCB_NUM];
+/*Running Queue and Waiting Queue*/
+Queue rq = NULL;
+Queue wq = NULL;
 
+/************************************************/
 /*Return the current running thread tcb*/
 my_tcb* my_pthread_self(){
-    assert(cur_tcb != NULL);
-    return cur_tcb;
+	assert(cur_tcb != NULL);
+	return cur_tcb;
 }
 /*Return the next thread scheduled to run*/
 my_tcb* my_pthread_next(){
-    assert(next_tcb != NULL);
-    return next_tcb;
+	assert(next_tcb != NULL);
+	return next_tcb;
 }
 
 /*Yield to other threads*/
 void my_pthread_yield(){
-    my_tcb* call_tcb = my_pthread_self();
-    my_tcb* next_tcb = my_pthread_next();
+	my_tcb* call_tcb = my_pthread_self();
+	my_tcb* next_tcb = my_pthread_next();
 #ifdef DEBUG
-    printf("%d is asking for yielding", call_tcb->thread_id);
-    printf("%d is the next thread running", next_tcb->thread_id);
+	printf("%d is asking for yielding", call_tcb->thread_id);
+	printf("%d is the next thread running", next_tcb->thread_id);
 #endif	
-    /*Swap context of current thread and next running thread*/
-    swapcontext(&(next_tcb->thread_context), &(call_tcb->thread_context));	
+		
+	/*Swap context of current thread and next running thread*/
+	swapcontext(&(next_tcb->thread_context), &(call_tcb->thread_context));	
+}
+
+/*Join another thread*/
+int my_pthread_join(my_pthread_t thread, void**value_ptr){
+	my_tcb* call_tcb = my_pthread_self();
+	my_tcb* next_tcb = my_pthread_next();
+
+#ifdef DEBUG
+	printf("thread %d is asking for joinng thread %d\n", call_tcb->thread_id, thread);
+#endif
+	if(value_ptr != NULL){
+		call_tcb->retVal = *value_ptr;
+	}		
+	Enqueue(call_tcb, all_tcb[thread]->waitForJoin);
+	status_tcb[call_tcb->thread_id] = BLOCKED;
+	my_pthread_yield();	
+	return 0;
 }
 
 /*Exit the current thread*/
 void my_pthread_exit(void* value_ptr){
-    my_tcb* call_tcb = my_pthread_self();
-    my_tcb* next_tcb = my_pthread_next();
-
-    pop_front_RQ(call_tcb);
-
-	/*TODO: Pass the value_ptr to scheduler to relieve waiting queue. Not sure how to do*/
-
+	my_tcb* call_tcb = my_pthread_self();
+	my_tcb* next_tcb = my_pthread_next();
+	my_tcb* wait_tcb = NULL;
+	/*Pass value_ptr to waiting threas*/
+	while(!IsEmpty(call_tcb->waitForJoin)){
+		wait_tcb = FrontAndDequeue(call_tcb->waitForJoin);
+		wait_tcb->retVal = value_ptr;
+		status_tcb[wait_tcb->thread_id] = READY;
+	}
 
 	/*Free tcb space*/
-    free(call_tcb->thread_context.uc_stack.ss_sp);
-    free(call_tcb);
-    /*Set the thread ID allocatable*/
-    array_tcb[call_tcb->thread_id] = 0;
-
-    /*Set context to next thread*/
-    setcontext(&(next_tcb->thread_context));	
+	free(call_tcb->thread_context.uc_stack.ss_sp);
+	free(call_tcb);
+	/*Set the thread ID allocatable*/
+	status_tcb[call_tcb->thread_id] = UNSET;
+	all_tcb[call_tcb->thread_id] = NULL;
+	/*Set context to next thread*/
+	setcontext(&(next_tcb->thread_context));	
 }
 
 int my_pthread_create( my_pthread_t* thread, my_pthread_attr_t* attr, void*(*function)(void*), void* arg){
-    int i = 0;
-    my_tcb* new_tcb = malloc(sizeof(my_tcb));
-    if( new_tcb == NULL){
-        printf("Memory Allocation Error");
-        return 1;
-    }
+	int i = 0;
+	my_tcb* new_tcb = malloc(sizeof(my_tcb));
+	if( new_tcb == NULL){
+		printf("Memory Allocation Error");
+		return 1;
+	}
 
-    /*Allocate an ID for new thread*/
-    *thread = i;
-    while(array_tcb[i++] == 1 || thread == 0){
-        *thread = (uint)i % (MAX_TCB_NUM - 1);
-    }/* Allocate scheme can be modified, such as start allocating from running thread_id + 1*/
-    new_tcb->thread_id = *thread;
+	/*Allocate an ID for new thread*/
+	while(status_tcb[i] != UNSET){ 
+		i = (i + 1) % MAX_TCB_NUM;
+	}
+	*thread = i;
+	new_tcb->thread_id = *thread;
 
-    /*Set highest priority to new thread*/
-    new_tcb->thread_priority = HIGH_PRI;
+	/*Set highest priority to new thread*/
+	new_tcb->thread_priority = HIGH_PRI;
 
-    /*Create context for new thread*/
-    getcontext(&(new_tcb->thread_context));
-    new_tcb->thread_context.uc_link = 0;
+	/*Initialize waiting for join queue*/
+	new_tcb->waitForJoin = CreateQueue(MAX_JOIN_NUM);
+
+	/*Create context for new thread*/
+	getcontext(&(new_tcb->thread_context));
+	new_tcb->thread_context.uc_link = 0;
     new_tcb->thread_context.uc_stack.ss_sp = malloc(MEM);
     new_tcb->thread_context.uc_stack.ss_size = MEM;
     new_tcb->thread_context.uc_stack.ss_flags = 0;
@@ -97,12 +122,18 @@ int my_pthread_create( my_pthread_t* thread, my_pthread_attr_t* attr, void*(*fun
 #endif
     if (new_tcb->thread_context.uc_stack.ss_sp == NULL){
         printf("Memory Allocation Error!");
-        array_tcb[new_tcb->thread_id] = 0;
+		status_tcb[new_tcb->thread_id] = 0;
         return 1;/*Allocation Error*/
     }	
-    makecontext(&(new_tcb->thread_context), *function, 1, arg);
-
-    /*Push current tcb into running queue*/
-    push_back_RQ(&new_tcb);
+    makecontext(&(new_tcb->thread_context), &function, 1, arg);
+	/*Set new thread status to running*/
+	status_tcb[new_tcb->thread_id] = READY;
+	/*Push new tcb into all_tcb array*/
+	all_tcb[new_tcb->thread_id] = new_tcb;
+	/*Push current tcb into running queue*/
+	if(rq == NULL){
+		rq = CreateQueue(MAX_TCB_NUM);
+	}
+	Enqueue(new_tcb, rq);
     return 0;
 }

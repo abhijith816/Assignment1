@@ -5,6 +5,7 @@
 #include <ucontext.h>
 #include <stdio.h>
 #include <time.h>
+#include <errno.h>
 
 #define MEM 64000
 #define MAX_THREADS 10
@@ -23,6 +24,13 @@ typedef struct {
 	int running;
 	
 }pthread;
+
+typedef struct my_pthread_mutex_t
+{
+	int flag;
+} my_pthread_mutex_t;
+
+typedef struct pthread_mutexattr_t{} pthread_mutexattr_t;
 
 extern int finished;
 extern int numthreads;
@@ -54,6 +62,12 @@ extern void my_pthread_yield();
 
 //End the thred that calls this function . If the argument is not null then the return value from the thread will be saved.
 extern void pthread_exit(void **value_ptr);
+
+/*******mutex****/
+int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr);
+int my_pthread_mutex_lock(my_pthread_mutex_t *mutex);
+int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex);
+int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex);
 
 
 //Call to the thread lib to make sure that the calling thread will not execute until the one it references exits. If the value_ptr is not null then return value of the exiting thread will be passed back.

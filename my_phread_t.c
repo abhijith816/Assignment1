@@ -3,6 +3,7 @@
 #include<signal.h>
 #include<ucontext.h>
 #include<assert.h>
+#include<errno.h>
 #include"my_pthread_t.h"
 #include"Queue.h"
 struct my_tcb{
@@ -13,6 +14,57 @@ struct my_tcb{
 	my_pthread_t thread_id;
 	ucontext_t thread_context;
 };
+
+/******************************************************/
+//mutex implementation.
+struct my_pthread_mutex_t
+{
+	int flag;
+};
+
+int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr){
+	if (mutex==NULL)
+	{
+		return EINVAL;
+	}
+	mutex->flag=0;
+	return 0;
+}
+
+int my_pthread_mutex_lock(my_pthread_mutex_t *mutex){
+	if (mutex==NULL)
+	{
+		return EINVAL;
+	}
+	while(__sync_lock_test_and_set(&(mutex->flag), 1))
+	my_pthread_yield();
+	return 0;
+}
+
+int my_pthread_mutex_unlock(my_pthread_mutex_t *mutex){
+	if (mutex==NULL)
+	{
+		return EINVAL;
+	}
+	__sync_synchronize();
+	mutex->flag=0;
+	return 0;
+}
+
+int my_pthread_mutex_destroy(my_pthread_mutex_t *mutex){
+	if (mutex->flag==1)
+	{
+		return EBUSY;
+	}
+	if (mutex->flag==0)
+	{
+		free(mutex);
+		mutex=NULL;
+	}
+	return 0;
+}
+
+/********************************************************/
 void* func_1(void*);
 /*Global variable to indicate current and next running tcb*/
 my_tcb* cur_tcb; 

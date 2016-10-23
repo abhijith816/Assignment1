@@ -90,7 +90,7 @@ int my_pthread_create(pthread *thread,  void (*function)(void), void * arg)
 	(*thread).mycontext.uc_stack.ss_sp=malloc(MEM);
 	(*thread).mycontext.uc_stack.ss_size = MEM;
 	(*thread).mycontext.uc_stack.ss_flags = 0;
-	
+	(*thread).waitjoin = -1;	
 	makecontext(&((*thread).mycontext), (void*)&prescheduler,1,(void*)function);
 	
 	//function();
@@ -135,10 +135,32 @@ void my_pthread_yield()
 	printf("Yielding is done \n");
 }
 
-void pthread_exit(void **value_ptr)
+void my_pthread_exit(void *value_ptr)
 {
 	//Exit the current thread.
-	
+	printf("thread %d is inside exiting\n", currentrunningid);
+	if(currentthread->waitjoin != -1){
+		//set the waitfor join thread runnable
+		my_thread_list[currentthread->waitjoin]->status = value_ptr;
+		//TODO set my_pthread_list[currentthread->waitjoin] to run
+	}
+	free(currentthread->mycontext.uc_stack.ss_sp);
+	free(currentthread);	
+	runningthreads--;
+	num_threads--;
+	my_thread_list[currentrunningid] = NULL;	
+	isThreadRunning = 0;
+	my_pthread_yield();
+}
+int my_pthread_join(pthread *thread,  void **value_ptr){
+	printf("thread %d is inside join\n", currentrunningid);
+	thread->waitjoin = currentthread->threadid;	
+	value_ptr = &(currentthread->status);
+	// TODO set currentthread waiting
+	//
+	isThreadRunning = 0;
+	runningthreads--;
+	my_pthread_yield();
 }
 
 void initialize()
@@ -151,6 +173,3 @@ void initialize()
 	
 	printf("Initialization is done \n");
 }
-
-
-

@@ -13,14 +13,13 @@ struct my_tcb{
 	my_pthread_t thread_id;
 	ucontext_t thread_context;
 };
-
+void func_1();
 /*Global variable to indicate current and next running tcb*/
 my_tcb* cur_tcb; 
 my_tcb* next_tcb;
 
 /*Array that indicates thread status, 0 indicate no such thread, 1 indicate running , 2 indicates blocked*/
 int status_tcb[MAX_TCB_NUM];
-/*Array that hold all the tcbs*/
 my_tcb* all_tcb[MAX_TCB_NUM];
 /*Running Queue and Waiting Queue*/
 Queue rq = NULL;
@@ -43,12 +42,12 @@ void my_pthread_yield(){
 	my_tcb* call_tcb = my_pthread_self();
 	my_tcb* next_tcb = my_pthread_next();
 #ifdef DEBUG
-	printf("%d is asking for yielding", call_tcb->thread_id);
-	printf("%d is the next thread running", next_tcb->thread_id);
+	printf("%d is asking for yielding\n", call_tcb->thread_id);
+	printf("%d is the next thread running\n", next_tcb->thread_id);
 #endif	
 		
 	/*Swap context of current thread and next running thread*/
-	swapcontext(&(next_tcb->thread_context), &(call_tcb->thread_context));	
+	swapcontext(&(call_tcb->thread_context), &(next_tcb->thread_context));	
 }
 
 /*Join another thread*/
@@ -94,7 +93,7 @@ int my_pthread_create( my_pthread_t* thread, my_pthread_attr_t* attr, void*(*fun
 	int i = 0;
 	my_tcb* new_tcb = malloc(sizeof(my_tcb));
 	if( new_tcb == NULL){
-		printf("Memory Allocation Error");
+		printf("Memory Allocation Error\n");
 		return 1;
 	}
 
@@ -121,11 +120,11 @@ int my_pthread_create( my_pthread_t* thread, my_pthread_attr_t* attr, void*(*fun
     printf("creating context for thread %d\n", new_tcb-> thread_id);
 #endif
     if (new_tcb->thread_context.uc_stack.ss_sp == NULL){
-        printf("Memory Allocation Error!");
+        printf("Memory Allocation Error!\n");
 		status_tcb[new_tcb->thread_id] = 0;
         return 1;/*Allocation Error*/
     }	
-    makecontext(&(new_tcb->thread_context), &function, 1, arg);
+    makecontext(&(new_tcb->thread_context), &func_1, 1, arg);
 	/*Set new thread status to running*/
 	status_tcb[new_tcb->thread_id] = READY;
 	/*Push new tcb into all_tcb array*/
@@ -137,3 +136,22 @@ int my_pthread_create( my_pthread_t* thread, my_pthread_attr_t* attr, void*(*fun
 	Enqueue(new_tcb, rq);
     return 0;
 }
+
+void func_1(){
+	printf("This is func_1\n");
+	my_pthread_exit(NULL);	
+}
+int main(int argc, char* argv[]){
+	my_pthread_t thread1, thread2;
+	ucontext_t main_context, context_1, context_2;
+	int flag = 0;
+
+	printf("This is in main\n");
+	my_pthread_create(&thread1, NULL, &func_1, NULL);
+	cur_tcb = malloc(sizeof(my_tcb));
+	cur_tcb->thread_id = 10;
+	getcontext(&(cur_tcb->thread_context)); 
+	next_tcb = all_tcb[thread1];
+	if(next_tcb != NULL) my_pthread_yield();	
+	return 0;
+} 

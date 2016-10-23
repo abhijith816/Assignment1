@@ -13,7 +13,7 @@ struct my_tcb{
 	my_pthread_t thread_id;
 	ucontext_t thread_context;
 };
-void func_1();
+void* func_1(void*);
 /*Global variable to indicate current and next running tcb*/
 my_tcb* cur_tcb; 
 my_tcb* next_tcb;
@@ -124,7 +124,7 @@ int my_pthread_create( my_pthread_t* thread, my_pthread_attr_t* attr, void*(*fun
 		status_tcb[new_tcb->thread_id] = 0;
         return 1;/*Allocation Error*/
     }	
-    makecontext(&(new_tcb->thread_context), &func_1, 1, arg);
+    makecontext(&(new_tcb->thread_context), &function, 1, arg);
 	/*Set new thread status to running*/
 	status_tcb[new_tcb->thread_id] = READY;
 	/*Push new tcb into all_tcb array*/
@@ -137,7 +137,7 @@ int my_pthread_create( my_pthread_t* thread, my_pthread_attr_t* attr, void*(*fun
     return 0;
 }
 
-void func_1(){
+void* func_1(void* t){
 	printf("This is func_1\n");
 	my_pthread_exit(NULL);	
 }

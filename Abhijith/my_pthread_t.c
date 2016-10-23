@@ -11,6 +11,7 @@
 
 int num_threads = 0;
 int runningthreads = 0;
+int waitingthreads = 0;
 int waitingid = 0;
 int currentrunningid = -1;
 pthread * currentthread = NULL;
@@ -143,12 +144,18 @@ void my_pthread_exit(void *value_ptr)
 		//set the waitfor join thread runnable
 		my_thread_list[currentthread->waitjoin]->status = value_ptr;
 		//TODO set my_pthread_list[currentthread->waitjoin] to run
+		my_thread_waiting_list[currentthread->waitjoin] = NULL;
+		my_thread_running_list[runningthreads] =  my_thread_list[currentthread->waitjoin]; 
+		runningthreads++;	
 	}
 	free(currentthread->mycontext.uc_stack.ss_sp);
 	free(currentthread);	
+	int c = 0;
+ 	for(c = currentrunningid; c< runningthreads -1; c++)
+ 		my_thread_running_list[c] = my_thread_running_list[c+1];	
 	runningthreads--;
-	num_threads--;
 	my_thread_list[currentrunningid] = NULL;	
+	num_threads--;
 	isThreadRunning = 0;
 	my_pthread_yield();
 }
@@ -158,8 +165,12 @@ int my_pthread_join(pthread *thread,  void **value_ptr){
 	value_ptr = &(currentthread->status);
 	// TODO set currentthread waiting
 	//
-	isThreadRunning = 0;
+	my_thread_waiting_list[currentthread->waitjoin] = thread; 
+	int c = 0;
+	for(c = currentrunningid; c< runningthreads -1; c++)
+ 		my_thread_running_list[c] = my_thread_running_list[c+1];	
 	runningthreads--;
+	isThreadRunning = 0;
 	my_pthread_yield();
 }
 
@@ -173,3 +184,5 @@ void initialize()
 	
 	printf("Initialization is done \n");
 }
+
+

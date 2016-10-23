@@ -13,6 +13,8 @@
 typedef struct {
 	int threadid;
 	ucontext_t mycontext;
+	int waitjoin;// Waitting thread id;
+	void * status;	
 	void * stack;
 	int priority;
 	float timeslice;
@@ -49,9 +51,8 @@ extern int my_phread_create(pthread *thread,  void (*function)(void), void * arg
 extern void my_pthread_yield();
 
 //End the thred that calls this function . If the argument is not null then the return value from the thread will be saved.
-extern void pthread_exit(void **value_ptr);
+extern void pthread_exit(void *value_ptr);
 
 
 //Call to the thread lib to make sure that the calling thread will not execute until the one it references exits. If the value_ptr is not null then return value of the exiting thread will be passed back.
-//extern int my_pthread_join(pthread_t thread, void **value_ptr);
-
+extern int my_pthread_join(pthread *thread, void **value_ptr);

@@ -235,6 +235,7 @@ void my_pthread_exit(void *value_ptr)
 	isThreadRunning = 0;
 	my_pthread_yield();
 }
+
 int my_pthread_join(pthread *thread,  void **value_ptr){
 	printf("thread %d is inside join\n", currentrunningid);
 	thread->waitjoin = currentthread->threadid;	
@@ -263,7 +264,7 @@ void initialize()
 
 /******************************************************/
 //mutex implementation.
-int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const pthread_mutexattr_t *mutexattr){
+int my_pthread_mutex_init(my_pthread_mutex_t *mutex, const my_pthread_mutexattr_t *mutexattr){
 	if (mutex==NULL)
 	{
 		return EINVAL;

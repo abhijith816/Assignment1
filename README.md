@@ -15,9 +15,9 @@ my_pthread_mutex_init(mutex_var,NULL);
 ```
 #### Lock and unlock your codes:
 ```c
-	my_pthread_mutex_lock(mutex_var);
-  -------Your Codes Here------------
-	my_pthread_mutex_unlock(mutex_var);
+my_pthread_mutex_lock(mutex_var);
+-------Your Codes Here------------
+my_pthread_mutex_unlock(mutex_var);
 ```
 #### Destroy your mutex:
 ```

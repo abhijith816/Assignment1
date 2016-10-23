@@ -13,8 +13,8 @@
 typedef unsigned int uint;
 typedef uint my_pthread_t;
 typedef int my_pthread_attr_t;
-typedef int my_pthread_mutex_t;
-typedef int my_pthread_mutexattr_t; 
+typedef struct my_pthread_mutex_t my_pthread_mutex_t;
+typedef struct pthread_mutexattr_t{} pthread_mutexattr_t; 
 
 typedef struct my_tcb my_tcb;
 
